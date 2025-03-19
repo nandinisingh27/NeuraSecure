@@ -90,6 +90,7 @@ def logout_user(request):
 def data_insert(request):
     if request.method=="POST":
         data = json.loads(request.body)
+        print(data)
         title = data.get('title')
         if title is None:
             return JsonResponse({'error':'Please enter valid title'},status=400)
@@ -122,21 +123,60 @@ def data_insert(request):
     
 def list_data(request):
     if request.method == "GET":
-        details = Data.objects.all().values()
-        id_list=[]
-        det=[]
-        for item in details:
-            val={
+        user =request.user
+        print(user)
+        if user.is_authenticated:
+            user_details = User.objects.filter(username = user).values()
+            user_id = user_details[0]['id']
+            details = Data.objects.all().values()
+            id_list=[]
+            det=[]
+            for item in details:
+                val={
                 'id':item['id']
-            }
-            id_list.append(val)
-        for item in id_list:
-            id = item['id']
-            info = Data.objects.filter(id =id).values()
-            info_cat_id = info[0]['category_id']
-            category_data = Category.objects.filter(id = info_cat_id).values()
-            cat_name  = category_data[0]['name']
-            val ={
+                }
+                id_list.append(val)
+            for item in id_list:
+                id = item['id']
+                info = Data.objects.filter(id =id).values()
+                info_cat_id = info[0]['category_id']
+                category_data = Category.objects.filter(id = info_cat_id).values()
+                cat_name  = category_data[0]['name']
+                if UserLike.objects.filter(user_id=user_id).filter(post_id=id).exists():
+                    user_like = UserLike.objects.filter(user_id=user_id).filter(post_id=id).values()
+                    is_like = user_like[0]['is_like']
+                else:
+                    is_like = False
+                
+                val ={
+                'id':info[0]['id'],
+                'title':info[0]['title'],
+                'info':info[0]['info'],
+                'category':cat_name,
+                'link':info[0]['link'],
+                'date':info[0]['date'],
+                'likes':info[0]['num_likes'],
+                'is_like':is_like
+                }
+                det.append(val)
+            return JsonResponse({'list':det},status =200)
+        
+        else:
+            details = Data.objects.all().values()
+            id_list=[]
+            det=[]
+            for item in details:
+                val={
+                'id':item['id']
+                }
+                id_list.append(val)
+            for item in id_list:
+                id = item['id']
+                info = Data.objects.filter(id =id).values()
+                info_cat_id = info[0]['category_id']
+                category_data = Category.objects.filter(id = info_cat_id).values()
+                cat_name  = category_data[0]['name']
+                val ={
                 'id':info[0]['id'],
                 'title':info[0]['title'],
                 'info':info[0]['info'],
@@ -145,8 +185,10 @@ def list_data(request):
                 'date':info[0]['date'],
                 'likes':info[0]['num_likes']
                 }
-            det.append(val)
-        return JsonResponse({'list':det},status =200)
+                det.append(val)
+            return JsonResponse({'list':det},status =200)
+                
+        
     else:
         return JsonResponse({'error':'Invalid method'},status =405)
                     
@@ -217,6 +259,7 @@ def like_dislike(request):
             user_like.save()
         else:
             UserLike.objects.create(user=user, post=det, is_like=True)
+            
             det.num_likes += 1
             message = 'Post liked'
 
